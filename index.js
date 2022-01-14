@@ -1,6 +1,8 @@
 const express = require("express");
+const rp = require("request-promise");
 const app = express();
-const PORT = 3000;
+//동적 포트 package.json script 객체에서 2번째 방에 들어있는 데이터 3001,3002,3003 ...3005
+const PORT = process.argv[2] ?? 3000;
 const bodyParser = require("body-parser");
 
 const BlockChain = require("./blockChain");
@@ -66,6 +68,66 @@ app.get("/mine", function (req, res) {
     newBlock: newBlock,
   });
 });
+
+//새로운 노드를 등록하고 전체 네트워크에 알림
+app.post("/register-and-broadcast-node", function (req, res) {
+  //새로 진입한 노드 주소
+  const newNodeUrl = req.body.newNodeUrl;
+  //비트코인 네트워크에 새로 진입한 노드의 주소가 없을 경우 추가
+  if (bitcoin.networkNodes.indexOf(newNodeUrl) == -1) {
+    bitcoin.networkNodes.push(newNodeUrl);
+  }
+  const regNodesPromises = [];
+  //비트코인 네트워크에 등록된 네트워크에 새로운 노드 정보를 등록
+  bitcoin.networkNodes.forEach((networkNodes) => {
+    //register - node
+    const requestOption = {
+      uri: networkNodesUrl + "/register-node",
+      method: "POST",
+      body: { newNodeUrl: newNodeUrl },
+      json: true,
+    };
+    //순차적으로 비동기를 실행하기 위해서 배열에 넣음
+    regNodesPromises.push(rp(requestOption));
+  }); //for 문 끝
+
+  //순차적으로 비동기 작업 처리
+  Promise.all(regNodesPromises)
+    .then((data) => {
+      //새로운 노드안에 전체 네트워크에 대한 정보 한번에 입력해주기
+      const bulkRegisterOption = {
+        uri: newNodeUrl + "/register-nodes-bulk",
+        method: "POST",
+        body: {
+          allNetworkNodes: [...bitcoin.networkNodes, bitcoin.currentNodeUrl],
+        },
+        json: true,
+      };
+      return rq(bulkRegisterOption);
+    })
+    .then((data) => {
+      res.json({
+        nodt: "새로운 노드가 전체 네트워크에 성공적으로 등록이 되었습니다.",
+      });
+    });
+});
+// 네트워크에 새로운 노드 등록
+app.post("/register-node", function (req, res) {
+  //새로운 노드 주소
+  const newNodeUrl = req.body.newNodeUrl;
+  //코인 네트워크에 새로운 노드의 주소가 없다면,
+  const nodeNotAlreadyPresent = bitcoin.networkNodes.indexOf(newNodeUrl) == -1;
+  //코인의 현재 url이 새로운 노드 주소가 아니라면, 즉 현재 접속한 주소와 중복되지 않는다면,
+  const notCurrentNode = bitcoin.currentNodeUrl !== newNodeUrl;
+
+  if (nodeNotAlreadyPresent && notCurrentNode) {
+    //코인 전체 네트워크에 새로운 주소 등록
+    bitcoin.networkNodes.push(newNodeUrl);
+    res.json({ note: "새로운 노드가 등록되었습니다." });
+  }
+});
+// 새로운 노드에 기존의 노드 정보 등록
+app.post("/register-nodes-bulk", function (req, res) {});
 
 app.listen(PORT, () => {
   console.log(`server running on ${PORT || 3000}`);

@@ -1,10 +1,18 @@
 const sha256 = require("sha256");
 
+//현재 노드의 url -- package.json script 객체에서 3번째 방에 들어있는 데이터 http://localhost:3001
+const currentNodeUrl = process.argv[3];
+
 //클래스를 이용한 블록체인 데이터 구조 위와 동일하다...
 class BlockChain {
   constructor() {
     this.chain = [];
     this.pendingTransaction = [];
+
+    //현재 node url -- 이부분!!!
+    this.currentNodeUrl = currentNodeUrl;
+    this.networkNodes = [];
+
     //제네시스 블락 - 임의의 인자값 넣어준다.
     this.createNewBlock(100, "0", "0");
   }
@@ -84,7 +92,7 @@ BlockChain.prototype.proofOfWork = function (
   return nonce;
 };
 
-출처: //abc1211.tistory.com/522?category=1003529 [길위의 개발자]
+//abc1211.tistory.com/522?category=1003529 [길위의 개발자]
 
 //BlockChain 모듈화
-https: module.exports = BlockChain;
+출처: https: module.exports = BlockChain;
